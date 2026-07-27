@@ -1,7 +1,6 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export default async function handler(req, res) {
-  // POST 요청만 허용
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -12,14 +11,14 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: '위치 정보와 기분을 모두 입력해주세요.' });
   }
 
-  // 환경변수에서 API 키 확인
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return res.status(500).json({ error: 'GEMINI_API_KEY가 설정되지 않았습니다.' });
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const prompt = `
 현재 사용자의 위치: 위도 ${latitude}, 경도 ${longitude}
@@ -34,12 +33,10 @@ export default async function handler(req, res) {
 3. 추천 맛집 스타일 3가지 (이유와 함께 간결하고 인상적인 설명)
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
 
-    return res.status(200).json({ result: response.text });
+    return res.status(200).json({ result: responseText });
   } catch (error) {
     console.error('Gemini API Error:', error);
     return res.status(500).json({ error: 'AI 추천을 가져오는 중 오류가 발생했습니다.' });
