@@ -1,4 +1,4 @@
-const { GoogleGenAI } = require('@google/genai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -13,35 +13,39 @@ module.exports = async function handler(req, res) {
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY가 설정되지 않았습니다.' });
+    return res.status(500).json({ error: 'Vercel 설정에서 GEMINI_API_KEY를 확인해주세요.' });
   }
 
   try {
-    // 최신 GoogleGenAI 클라이언트 생성
-    const ai = new GoogleGenAI({ apiKey });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    // 가장 안정적이고 빠른 1.5-flash 모델 사용
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
 
     const prompt = `
-현재 위치 정보: 위도 ${latitude}, 경도 ${longitude}
-사용자 기분/원하는 분위기: "${mood}"
+사용자 위치: 위도 ${latitude}, 경도 ${longitude}
+사용자 현재 기분: "${mood}"
 
-[요청 사항]
-1. 구글 검색을 활용하여 위 위도/경도 근처에서 **현재 정상 영업 중인 실제 음식점 3곳**을 찾으세요.
-2. **폐업했거나 영업을 중단한 식당은 절대로 포함하지 마세요.**
-3. 검증된 실제 매장명과 대표 메뉴, 그리고 사용자의 기분에 왜 어울리는지 이유를 명확하고 친절하게 설명해 주세요.
-`;
+당신은 전문 맛집 큐레이터입니다. 
+위의 위도/경도 주변 지역에서 사용자의 기분에 딱 맞는 **실제 음식점/상호명 3곳**을 찾아서 추천해주세요.
 
-    // gemini-3.1-flash-lite 모델 호출 및 구글 검색 도구 설정
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.1-flash-lite',
-      contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }]
-      }
-    });
+응답 조건:
+1. 사용자의 기분에 대한 공감 한 줄
+2. **실제 추천 음식점 3곳 (정확한 매장 이름 포함)**
+   - 매장명: [정확한 가게 이름]
+   - 대표 메뉴: [추천 메뉴]
+   - 추천 이유: [이 기분에 이 매장을 추천하는 이유]
+3. 답변은 깔끔한 마크다운 형식으로 작성해주세요.
+    `;
 
-    return res.status(200).json({ result: response.text });
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
+
+    return res.status(200).json({ result: responseText });
   } catch (error) {
     console.error('Gemini API Error:', error);
-    return res.status(500).json({ error: error.message });
+    // 자세한 에러 메시지를 응답으로 전달하여 원인 파악을 돕습니다.
+    return res.status(500).json({ 
+      error: `AI 처리 중 오류가 발생했습니다: ${error.message || '알 수 없는 오류'}` 
+    });
   }
 };
