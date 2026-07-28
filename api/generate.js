@@ -20,7 +20,7 @@ module.exports = async function handler(req, res) {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
 
     const prompt = `
 현재 사용자의 위치: 위도 ${latitude}, 경도 ${longitude}
