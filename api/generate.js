@@ -1,7 +1,6 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 module.exports = async function handler(req, res) {
-  // POST 요청만 허용
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -12,27 +11,30 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: '위치 정보와 기분을 모두 입력해주세요.' });
   }
 
-  // Vercel 환경변수에서 키 읽기
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY가 설정되지 않았습니다.' });
+    return res.status(500).json({ error: 'Vercel 설정에서 GEMINI_API_KEY를 확인해주세요.' });
   }
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
+    // 가장 안정적이고 빠른 1.5-flash 모델 사용
     const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
 
     const prompt = `
-현재 사용자의 위치: 위도 ${latitude}, 경도 ${longitude}
-현재 사용자의 기분/분위기: "${mood}"
+사용자 위치: 위도 ${latitude}, 경도 ${longitude}
+사용자 현재 기분: "${mood}"
 
-역할: 당신은 감성적이고 전문적인 맛집 큐레이터입니다.
-상황: 사용자의 현재 기분과 위치를 고려하여, 기분에 딱 맞는 메뉴 종류와 주변 맛집 스타일 3곳을 추천해주세요.
+당신은 전문 맛집 큐레이터입니다. 
+위의 위도/경도 주변 지역에서 사용자의 기분에 딱 맞는 **실제 음식점/상호명 3곳**을 찾아서 추천해주세요.
 
-응답 형식:
+응답 조건:
 1. 사용자의 기분에 대한 공감 한 줄
-2. 추천 음식 카테고리/분위기
-3. 추천 맛집 스타일 3가지 (이유와 함께 간결하고 인상적인 설명)
+2. **실제 추천 음식점 3곳 (정확한 매장 이름 포함)**
+   - 매장명: [정확한 가게 이름]
+   - 대표 메뉴: [추천 메뉴]
+   - 추천 이유: [이 기분에 이 매장을 추천하는 이유]
+3. 답변은 깔끔한 마크다운 형식으로 작성해주세요.
     `;
 
     const result = await model.generateContent(prompt);
@@ -40,7 +42,10 @@ module.exports = async function handler(req, res) {
 
     return res.status(200).json({ result: responseText });
   } catch (error) {
-    console.error('Gemini API Error Detail:', error);
-    return res.status(500).json({ error: 'AI 추천을 가져오는 중 오류가 발생했습니다.' });
+    console.error('Gemini API Error:', error);
+    // 자세한 에러 메시지를 응답으로 전달하여 원인 파악을 돕습니다.
+    return res.status(500).json({ 
+      error: `AI 처리 중 오류가 발생했습니다: ${error.message || '알 수 없는 오류'}` 
+    });
   }
 };
