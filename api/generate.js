@@ -1,16 +1,18 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
+  // POST 요청만 허용
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { latitude, longitude, mood } = req.body;
+  const { latitude, longitude, mood } = req.body || {};
 
   if (!mood || !latitude || !longitude) {
     return res.status(400).json({ error: '위치 정보와 기분을 모두 입력해주세요.' });
   }
 
+  // Vercel 환경변수에서 키 읽기
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return res.status(500).json({ error: 'GEMINI_API_KEY가 설정되지 않았습니다.' });
@@ -38,7 +40,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ result: responseText });
   } catch (error) {
-    console.error('Gemini API Error:', error);
+    console.error('Gemini API Error Detail:', error);
     return res.status(500).json({ error: 'AI 추천을 가져오는 중 오류가 발생했습니다.' });
   }
-}
+};
